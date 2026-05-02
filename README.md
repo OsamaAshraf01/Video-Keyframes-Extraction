@@ -1,4 +1,5 @@
-# Video Keyframes Extraction Project
+# Video Keyframes Extraction
+![Intro Image](images/intro.png)
 
 This report provides a comprehensive overview of the Video Keyframes Extraction project, detailing the architecture, approaches, and visualization of the results. The goal of this project is to automatically extract representative keyframes from videos using various deep learning and clustering techniques.
 
@@ -22,15 +23,15 @@ This approach relies entirely on the spatial features extracted from individual 
 ### Visualizations
 
 #### Extracted Keyframes
-![K-Means Keyframes](results/AwmHb44_ouw_kmeans_keyframes.png)
+![K-Means Keyframes](images/AwmHb44_ouw_kmeans_keyframes.png)
 
 #### Feature Projections (Clusters)
 
 **PCA Projection:**
-![K-Means PCA](results/AwmHb44_ouw_kmeans_pca.png)
+![K-Means PCA](images/AwmHb44_ouw_kmeans_pca.png)
 
 **t-SNE Projection:**
-![K-Means t-SNE](results/AwmHb44_ouw_kmeans_tsne.png)
+![K-Means t-SNE](images/AwmHb44_ouw_kmeans_tsne.png)
 
 ---
 
@@ -45,15 +46,15 @@ To capture the temporal dynamics and sequence information of the video, an LSTM 
 ### Visualizations
 
 #### Extracted Keyframes
-![LSTM Keyframes](results/AwmHb44_ouw_lstm_keyframes.png)
+![LSTM Keyframes](images/AwmHb44_ouw_lstm_keyframes.png)
 
 #### Feature Projections (Clusters)
 
 **PCA Projection:**
-![LSTM PCA](results/AwmHb44_ouw_lstm_pca.png)
+![LSTM PCA](images/AwmHb44_ouw_lstm_pca.png)
 
 **t-SNE Projection:**
-![LSTM t-SNE](results/AwmHb44_ouw_lstm_tsne.png)
+![LSTM t-SNE](images/AwmHb44_ouw_lstm_tsne.png)
 
 ---
 
@@ -68,7 +69,7 @@ This approach leverages ground-truth annotations to directly learn which frames 
 ### Visualizations
 
 #### Extracted Keyframes
-![Supervised Keyframes](results/AwmHb44_ouw_supervised_keyframes.png)
+![Supervised Keyframes](images/AwmHb44_ouw_supervised_keyframes.png)
 
 
 ---
