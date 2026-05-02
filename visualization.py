@@ -50,7 +50,7 @@ def plot_keyframes(video_path, key_frames_indices, output_filename=None, output_
     for ax, frame, idx in zip(axes, frames_to_show, key_frames_indices):
         ax.imshow(frame)
         ax.axis('off')
-        ax.set_title(f"Frame {idx}", fontweight='bold')
+        ax.set_title(f"{idx}", fontweight='bold')
     plt.tight_layout()
     
     out_path = _get_output_path(output_filename, output_dir)
@@ -80,13 +80,19 @@ def plot_feature_projection(features, labels=None, method='pca', title="Feature 
         unique_labels = np.unique(labels)
         print(f"Plotting {len(unique_labels)} clusters...")
         
+        import matplotlib.colors as mcolors
+        
         for i, label in enumerate(unique_labels):
             if label == -1:
                 continue
                 
             cluster_points = features_2d[labels == label]
             
-            ax.scatter(cluster_points[:, 0], cluster_points[:, 1], color=f'C{i % 10}', 
+            # Generate a unique color dynamically based on cluster index using HSV space
+            hue = i / len(unique_labels)
+            color = mcolors.hsv_to_rgb([hue, 0.85, 0.9])
+            
+            ax.scatter(cluster_points[:, 0], cluster_points[:, 1], color=color, 
                        label=f'Cluster {label}', alpha=0.6, s=40, edgecolors='black', linewidth=0.1)
             
             median = np.median(cluster_points, axis=0)

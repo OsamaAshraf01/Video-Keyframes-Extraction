@@ -8,6 +8,7 @@ import scipy.ndimage
 import os
 from config import SUPERVISED_MODEL_WEIGHTS
 from models import LSTMAutoencoder, ScorePredictor
+from tqdm import tqdm
 
 class BaseSummarizer:
     def __init__(self, data_loader, feature_extractor):
@@ -40,15 +41,31 @@ class KMeansSummarizer(BaseSummarizer):
         sample_indices = sample_without_replacement(len(all_features), sample_size, random_state=42)
         sample_features = all_features[sample_indices]
 
-        best_score = -1
-        best_k = 5
+        # Improved K selection using the Elbow Method (maximum distance from line)
+        inertias = []
         for k in k_range:
             kmeans = KMeans(n_clusters=k, random_state=42)
-            labels = kmeans.fit_predict(sample_features)
-            score = silhouette_score(sample_features, labels)
-            if score > best_score:
-                best_score = score
-                best_k = k
+            kmeans.fit(sample_features)
+            inertias.append(kmeans.inertia_)
+            
+        # Normalize to 0-1 range for fair geometric distance calculation
+        inertias_np = np.array(inertias)
+        k_np = np.array(k_range)
+        n_inertias = (inertias_np - inertias_np.min()) / (inertias_np.max() - inertias_np.min() + 1e-6)
+        n_k = (k_np - k_np.min()) / (k_np.max() - k_np.min() + 1e-6)
+        
+        # Line from first to last point
+        p1 = np.array([n_k[0], n_inertias[0]])
+        p2 = np.array([n_k[-1], n_inertias[-1]])
+        
+        # Calculate distances from each point to the line
+        distances = []
+        for i in range(len(k_range)):
+            p = np.array([n_k[i], n_inertias[i]])
+            d = np.linalg.norm(np.cross(p2 - p1, p1 - p)) / np.linalg.norm(p2 - p1)
+            distances.append(d)
+            
+        best_k = k_range[np.argmax(distances)]
 
         final_kmeans = KMeans(n_clusters=best_k, random_state=42)
         final_labels = final_kmeans.fit_predict(all_features)
@@ -110,15 +127,31 @@ class LSTMSummarizer(BaseSummarizer):
         sample_indices = sample_without_replacement(len(lstm_features_np), sample_size, random_state=42)
         sample_features = lstm_features_np[sample_indices]
 
-        best_score = -1
-        best_k = 5
+        # Improved K selection using the Elbow Method (maximum distance from line)
+        inertias = []
         for k in k_range:
             kmeans = KMeans(n_clusters=k, random_state=42)
-            labels = kmeans.fit_predict(sample_features)
-            score = silhouette_score(sample_features, labels)
-            if score > best_score:
-                best_score = score
-                best_k = k
+            kmeans.fit(sample_features)
+            inertias.append(kmeans.inertia_)
+            
+        # Normalize to 0-1 range for fair geometric distance calculation
+        inertias_np = np.array(inertias)
+        k_np = np.array(k_range)
+        n_inertias = (inertias_np - inertias_np.min()) / (inertias_np.max() - inertias_np.min() + 1e-6)
+        n_k = (k_np - k_np.min()) / (k_np.max() - k_np.min() + 1e-6)
+        
+        # Line from first to last point
+        p1 = np.array([n_k[0], n_inertias[0]])
+        p2 = np.array([n_k[-1], n_inertias[-1]])
+        
+        # Calculate distances from each point to the line
+        distances = []
+        for i in range(len(k_range)):
+            p = np.array([n_k[i], n_inertias[i]])
+            d = np.linalg.norm(np.cross(p2 - p1, p1 - p)) / np.linalg.norm(p2 - p1)
+            distances.append(d)
+            
+        best_k = k_range[np.argmax(distances)]
 
         final_kmeans = KMeans(n_clusters=best_k, random_state=42)
         final_labels = final_kmeans.fit_predict(lstm_features_np)
@@ -149,7 +182,7 @@ class SupervisedSummarizer(BaseSummarizer):
 
     def precompute_features(self):
         video_ids = self.data_loader.video_names
-        for i, vid_id in enumerate(video_ids):
+        for i, vid_id in enumerate(tqdm(video_ids, desc="Precomputing features")):
             try:
                 frames_iter = self.data_loader.get_video_frames(vid_id, batch_size=32)
                 features = []
@@ -189,7 +222,8 @@ class SupervisedSummarizer(BaseSummarizer):
         for epoch in range(epochs):
             epoch_loss = 0
             count = 0
-            for vid_id in self.feature_cache:
+            
+            for vid_id in tqdm(self.feature_cache, desc=f"Epoch {epoch+1}/{epochs}", leave=False):
                 features = self.feature_cache[vid_id].to(self.device).unsqueeze(0)
                 targets = self.score_cache[vid_id].to(self.device).unsqueeze(0)
 
@@ -206,7 +240,7 @@ class SupervisedSummarizer(BaseSummarizer):
         print(f"Saving supervised model weights to {SUPERVISED_MODEL_WEIGHTS}...")
         torch.save(self.model.state_dict(), SUPERVISED_MODEL_WEIGHTS)
 
-    def summarize(self, video_id, num_frames=5):
+    def summarize(self, video_id, num_frames='auto'):
         self.model.eval()
         if video_id in self.feature_cache:
             video_features = self.feature_cache[video_id].to(self.device).unsqueeze(0)
@@ -219,11 +253,17 @@ class SupervisedSummarizer(BaseSummarizer):
         with torch.no_grad():
             scores = self.model(video_features).squeeze().cpu().numpy()
 
+        if num_frames == 'auto':
+            # Select roughly 15% of the video segments, with a minimum of 5 frames
+            target_frames = max(5, len(scores) // 15)
+        else:
+            target_frames = num_frames
+
         top_indices = np.argsort(scores)[::-1]
         selected_indices = []
         min_distance = 15
         for idx in top_indices:
-            if len(selected_indices) >= num_frames: break
+            if len(selected_indices) >= target_frames: break
             if all(abs(idx - s) > min_distance for s in selected_indices):
                 selected_indices.append(idx)
 
